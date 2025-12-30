@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres.malesa
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n-dmz
+      - DB_POSTGRESDB_USER=n8n-dmz
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+
+      - N8N_LOG_LEVEL=debug
+      - N8N_DIAGNOSTICS_ENABLED=false
+
+      - N8N_MFA_ENABLED=true
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PROXY_HOPS=1
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+
+      - N8N_EMAIL_MODE=smtp
+      - N8N_SMTP_HOST=mail.malesa.net
+      - N8N_SMTP_USER=${SMTP_EMAIL_USER}
+      - N8N_SMTP_PASS=${SMTP_EMAIL_PASSWORD}
+      - N8N_SMTP_SENDER=${SMTP_EMAIL_USER}
+      - N8N_SMTP_SSL=true
+      - N8N_SMTP_STARTTLS=false
+      - N8N_SMTP_PORT=465
+
+      # WAŻNE: runners ON
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_AUTH_TOKEN=${RUNNERS_AUTH_TOKEN}
+
+      # możesz zostawić wykluczenia jeśli nie potrzebujesz exec/ssh
+      - NODES_EXCLUDE=["n8n-nodes-base.executeCommand","n8n-nodes-base.ssh"]
+
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - NODE_ENV=production
+    command: "start"
+    ports:
+      - "5678:5678"
+    volumes:
+      - /data/n8n:/home/node/.n8n
+
+  task-runners:
+    build: ./runners-python
+    restart: always
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n:5679
+      - N8N_RUNNERS_AUTH_TOKEN=${RUNNERS_AUTH_TOKEN}
+    depends_on:
+      - n8n
+
